@@ -102,7 +102,7 @@ class Limiter {
                 $info->start       = date('d M Y H:i:s');
             }
 
-            if($this->header === TRUE) {
+            if($this->header_show === TRUE) {
                 $headers = array('Limit' => $req_per_hour, 'Remaining' => $req_per_hour - $info->count - $req_add, 'Reset' => strtotime($info->reset_epoch),);
 
                 foreach(array_keys($headers) as $h) {
