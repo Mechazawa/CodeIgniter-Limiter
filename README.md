@@ -14,12 +14,14 @@ Finally add the structure of `table.sql` to your database.
 if($this->user->logged_in()) {
     /**
      * Make sure that the user is a unique 
-     * user to the request limiter.
+     * user to the request limiter. otherwise
+     * the only know info about the client 
+     * will be it's IP address.
      */
     $this->limiter->add_user_data($this->user->username);
 }
 
-$abort = $this->limiter->limit('something', 30);
+$abort = $this->limiter->limit('something', 10);
 
 if($abort) {
     /**
