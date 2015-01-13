@@ -69,7 +69,7 @@ class Limiter {
      * @param int $req_per_hour Overrides base_limit setting if set
      * @param bool $flush_on_abort Overrides flush_on_abort setting if set
      * @param bool $show_header Overrides header_show setting if set
-     * @return bool
+     * @return bool Should request be aborted
      */
     public function limit($target = '_global', $req_per_hour = null, $flush_on_abort = null, $show_header = null) {
         $req_per_hour   = $req_per_hour ?: $this->base_limit;
