@@ -3,10 +3,10 @@
 /**
  * CodeIgniter limiter
  *
- * @license 	MIT License
- * @package		Limiter
- * @author  	Mechazawa
- * @version 	1.0.0
+ * @license     MIT License
+ * @package     Limiter
+ * @author      Mechazawa
+ * @version     1.0.0
  */
 
 
