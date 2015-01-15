@@ -27,9 +27,9 @@ class Limiter {
 
     private $_truncated = FALSE;
 
-    private $_truncate_sql   = 'DELETE FROM `rate_limit` WHERE `start` < (NOW() - INTERVAL 1 HOUR)';
-    private $_info_sql       = 'SELECT `count`, `start`, (`start` + INTERVAL (1 - TIMESTAMPDIFF(HOUR, UTC_TIMESTAMP(), NOW())) HOUR) \'reset_epoch\' FROM `rate_limit` WHERE `client` = ? AND `target` = ?';
-    private $_update_sql     = 'INSERT INTO `rate_limit` (`client`, `target`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `count` = `count` + 1';
+    private $_sql_truncate   = 'DELETE FROM `RATE_TABLE` WHERE `start` < (NOW() - INTERVAL 1 HOUR)';
+    private $_sql_info       = 'SELECT `count`, `start`, (`start` + INTERVAL (1 - TIMESTAMPDIFF(HOUR, UTC_TIMESTAMP(), NOW())) HOUR) \'reset_epoch\' FROM `RATE_TABLE` WHERE `client` = ? AND `target` = ?';
+    private $_sql_update     = 'INSERT INTO `RATE_TABLE` (`client`, `target`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `count` = `count` + 1';
     private $_config_fields  = array(
         'table', 'base_limit', 'checksum_algorithm',
         'header', 'header_prefix', 'flush_on_abort'
@@ -46,6 +46,11 @@ class Limiter {
             if(array_key_exists($field, $config)) {
                 $this->{$field} = $config[$field];
             }
+        }
+
+        $sql = array('truncate', 'info', 'update');
+        foreach($sql as $s) {
+            $this->{"_sql_$s"} = str_replace('RATE_TABLE', $this->table, $this->{"_sql_$s"});
         }
 
         $this->add_user_data($this->CI->input->ip_address());
@@ -82,10 +87,10 @@ class Limiter {
             $data = array('client' => $this->get_hash(), 'target' => $target);
 
             $req_add = 0;
-            $info    = $this->CI->db->query($this->_info_sql, $data)->row();
+            $info    = $this->CI->db->query($this->_sql_info, $data)->row();
 
             if(!isset($info->count) || $req_per_hour - $info->count > 0) {
-                $this->CI->db->query($this->_update_sql, $data);
+                $this->CI->db->query($this->_sql_update, $data);
                 $req_add = 1;
             } else {
                 $abort = TRUE;
@@ -176,7 +181,7 @@ class Limiter {
 
     private function _truncate() {
         if(!$this->_truncated) {
-            $this->_truncated = $this->CI->db->query($this->_truncate_sql);
+            $this->_truncated = $this->CI->db->query($this->_sql_truncate);
         }
         return $this->_truncated;
     }
