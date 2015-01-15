@@ -9,6 +9,7 @@ $config['table']         = 'rate_limit';
 $config['base_limit']    = 0;    // Infinite
 $config['header_show']   = TRUE; // Should a rate limit info header be injected?
 $config['header_prefix'] = 'X-RateLimit-';
+$config['whitelist    '] = array('127.0.0.1'); // Clients ignored by the limiter
 
 /**
  * Pick this with care!

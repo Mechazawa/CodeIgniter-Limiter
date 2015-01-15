@@ -20,6 +20,7 @@ class Limiter {
     protected $checksum_algorithm = 'md4';
     protected $header_prefix  = 'X-RateLimit-';
     protected $flush_on_abort = FALSE;
+    protected $whitelist = array('127.0.0.1');
 
     protected $user_data = array();
     protected $user_hash = FALSE;
@@ -71,8 +72,13 @@ class Limiter {
             log_message('DEBUG', 'WARN: Could not truncate rate limit table');
         }
 
+        $ip_address = $this->CI->input->ip_address();
+        if(in_array($ip_address, $this->whitelist)) {
+            $req_per_hour = 0;
+        }
+
         $abort = FALSE;
-        if($req_per_hour !== 0) {
+        if($req_per_hour > 0) {
             $data = array('client' => $this->get_hash(), 'target' => $target);
 
             $req_add = 0;
@@ -93,7 +99,11 @@ class Limiter {
             }
 
             if($show_header === TRUE) {
-                $headers = array('Limit' => $req_per_hour, 'Remaining' => $req_per_hour - $info->count - $req_add, 'Reset' => strtotime($info->reset_epoch),);
+                $headers = array(
+                    'Limit' => $req_per_hour,
+                    'Remaining' => $req_per_hour - $info->count - $req_add,
+                    'Reset' => strtotime($info->reset_epoch),
+                );
 
                 foreach(array_keys($headers) as $h) {
                     $this->CI->output->set_header("$this->header_prefix$h: $headers[$h]");
@@ -174,5 +184,4 @@ class Limiter {
     private function _generate_hash() {
         return hash($this->checksum_algorithm, join('%', $this->user_data));
     }
-
 }
