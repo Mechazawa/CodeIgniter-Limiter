@@ -46,8 +46,5 @@ X-RateLimit-Limit: 10
 X-RateLimit-Remaining: 5
 X-RateLimit-Reset: 1421161173
 Content-Type: application/json
-Expires: Sat, 26 Jul 1997 05:00:00 GMT
-Cache-Control: no-cache, no-store, must-revalidate, max-age=0
-Cache-Control: post-check=0, pre-check=0
 Pragma: no-cache
 ```
