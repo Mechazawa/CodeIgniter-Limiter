@@ -46,5 +46,4 @@ X-RateLimit-Limit: 10
 X-RateLimit-Remaining: 5
 X-RateLimit-Reset: 1421161173
 Content-Type: application/json
-Pragma: no-cache
 ```
