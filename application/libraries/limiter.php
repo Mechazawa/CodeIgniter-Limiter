@@ -14,23 +14,24 @@ class Limiter {
 
     /** @type CI_Controller */
     protected $CI;
-    protected $table = 'rate_limit';
+    protected $table      = 'rate_limit';
     protected $base_limit = 0; // infinite
-    protected $header_show = TRUE;
+    protected $whitelist  = array('127.0.0.1');
+    protected $header_show        = TRUE;
     protected $checksum_algorithm = 'md4';
-    protected $header_prefix  = 'X-RateLimit-';
-    protected $flush_on_abort = FALSE;
-    protected $whitelist = array('127.0.0.1');
+    protected $header_prefix      = 'X-RateLimit-';
+    protected $flush_on_abort     = FALSE;
 
     protected $user_data = array();
     protected $user_hash = FALSE;
 
-    private $_truncated = FALSE;
+    private $_truncated  = FALSE;
+    private $_info_cache = array();
 
-    private $_sql_truncate   = 'DELETE FROM `RATE_TABLE` WHERE `start` < (NOW() - INTERVAL 1 HOUR)';
-    private $_sql_info       = 'SELECT `count`, `start`, (`start` + INTERVAL (1 - TIMESTAMPDIFF(HOUR, UTC_TIMESTAMP(), NOW())) HOUR) \'reset_epoch\' FROM `RATE_TABLE` WHERE `client` = ? AND `target` = ?';
-    private $_sql_update     = 'INSERT INTO `RATE_TABLE` (`client`, `target`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `count` = `count` + 1';
-    private $_config_fields  = array(
+    private $_sql_truncate  = 'DELETE FROM `RATE_TABLE` WHERE `start` < (NOW() - INTERVAL 1 HOUR)';
+    private $_sql_info      = 'SELECT `count`, `start`, (`start` + INTERVAL (1 - TIMESTAMPDIFF(HOUR, UTC_TIMESTAMP(), NOW())) HOUR) \'reset_epoch\' FROM `RATE_TABLE` WHERE `client` = ? AND `target` = ?';
+    private $_sql_update    = 'INSERT INTO `RATE_TABLE` (`client`, `target`) VALUES (?, ?) ON DUPLICATE KEY UPDATE `count` = `count` + 1';
+    private $_config_fields = array(
         'table', 'base_limit', 'checksum_algorithm',
         'header', 'header_prefix', 'flush_on_abort'
     );
@@ -84,14 +85,11 @@ class Limiter {
 
         $abort = FALSE;
         if($req_per_hour > 0) {
-            $data = array('client' => $this->get_hash(), 'target' => $target);
-
-            $req_add = 0;
-            $info    = $this->CI->db->query($this->_sql_info, $data)->row();
+            $info = $this->get_limit_info($target);
 
             if(!isset($info->count) || $req_per_hour - $info->count > 0) {
                 $this->CI->db->query($this->_sql_update, $data);
-                $req_add = 1;
+                $info->count++;
             } else {
                 $abort = TRUE;
             }
@@ -106,7 +104,7 @@ class Limiter {
             if($show_header === TRUE) {
                 $headers = array(
                     'Limit' => $req_per_hour,
-                    'Remaining' => $req_per_hour - $info->count - $req_add,
+                    'Remaining' => $req_per_hour - $info->count,
                     'Reset' => strtotime($info->reset_epoch),
                 );
 
@@ -114,6 +112,9 @@ class Limiter {
                     $this->CI->output->set_header("$this->header_prefix$h: $headers[$h]");
                 }
             }
+
+            $this->_info_cache[$target] = $info;
+
 
             if($abort) {
                 $retry_seconds = strtotime($info->reset_epoch) - strtotime(gmdate('d M Y H:i:s'));
@@ -167,16 +168,44 @@ class Limiter {
      * sure that this is some sort of static
      * data such as a username/id.
      *
-     * @param string $data
+     * @param string $data Any seeding data
      */
     public function add_user_data($data) {
-        array_push($this->user_data, (string)$data);
+        array_push($this->user_data, (string) $data);
+
+        if(count($this->_info_cache) !== 0) {
+            log_message('DEBUG', 'WARN: Emptying info cache due to user data changing');
+            $this->_info_cache = array(); // Empty cache
+        }
 
         if($this->user_hash !== FALSE) {
             log_message('DEBUG', 'WARN: Adding user data after hash was generated');
-
             $this->user_hash = $this->_generate_hash();
         }
+    }
+
+    /**
+     * Get target rate info
+     *
+     * @param string $target
+     * @return stdClass Info object
+     */
+    public function get_limit_info($target = '_global') {
+        if(!array_key_exists($target, $this->_info_cache)) {
+            $data = array('client' => $this->get_hash(), 'target' => $target);
+            $info = $this->CI->db->query($this->_sql_info, $data)->row();
+            $this->_info_cache[$target] = $info;
+        }
+
+        return $this->_info_cache[$target];
+    }
+
+    /**
+     * @param $target
+     * @return integer Amount of attempts
+     */
+    public function get_attempts($target) {
+        return $this->get_limit_info($target)->count;
     }
 
     private function _truncate() {
