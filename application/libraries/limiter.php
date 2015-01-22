@@ -78,8 +78,7 @@ class Limiter {
             log_message('DEBUG', 'WARN: Could not truncate rate limit table');
         }
 
-        $ip_address = $this->CI->input->ip_address();
-        if(in_array($ip_address, $this->whitelist)) {
+        if($this->is_whitelisted()) {
             $req_per_hour = 0;
         }
 
@@ -211,6 +210,15 @@ class Limiter {
      */
     public function get_attempts($target) {
         return $this->get_limit_info($target)->count;
+    }
+
+    /**
+     * @param null $ip If null current IP
+     * @return bool Is whitelisted
+     */
+    public function is_whitelisted($ip = null) {
+        $ip = $ip ?:  $this->CI->input->ip_address();
+        return in_array($ip, $this->whitelist);
     }
 
     private function _truncate() {
