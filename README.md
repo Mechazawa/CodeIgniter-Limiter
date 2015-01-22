@@ -7,7 +7,7 @@ Merge the contents of the `application` folder with the `application` folder of 
 ```php
 $autoload['libraries'] = array('database', 'limiter');
 ```
-Finally add the structure of `table.sql` to your database.
+Finally add the structure of [table.sql](table.sql) to your database.
 
 # Synopsis
 ```php
