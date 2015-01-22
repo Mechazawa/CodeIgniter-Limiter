@@ -69,9 +69,9 @@ class Limiter {
      * @return bool Should request be aborted
      */
     public function limit($target = '_global', $req_per_hour = null, $flush_on_abort = null, $show_header = null) {
-        $req_per_hour   = $req_per_hour ?: $this->base_limit;
-        $flush_on_abort = $flush_on_abort ?: $this->flush_on_abort;
-        $show_header    = $show_header ?: $this->header_show;
+        $req_per_hour   = $req_per_hour !== null ? $req_per_hour : $this->base_limit;
+        $flush_on_abort = $flush_on_abort !== null ? $flush_on_abort : $this->flush_on_abort;
+        $show_header    = $show_header !== null ? $show_header : $this->header_show;
 
         $truncated = $this->_truncate();
         if(!$truncated) {
@@ -87,18 +87,19 @@ class Limiter {
         if($req_per_hour > 0) {
             $info = $this->get_limit_info($target);
 
-            if(!isset($info->count) || $req_per_hour - $info->count > 0) {
-                $this->CI->db->query($this->_sql_update, $data);
-                $info->count++;
-            } else {
-                $abort = TRUE;
-            }
-
-            if(!isset($info->count)) {
+            if($info === FALSE) {
                 $info              = new stdClass();
                 $info->count       = 0;
                 $info->reset_epoch = gmdate('d M Y H:i:s', time() + (60 * 60));
                 $info->start       = date('d M Y H:i:s');
+            }
+
+            if($req_per_hour - $info->count > 0) {
+                $data = array('client' => $this->get_hash(), 'target' => $target);
+                $this->CI->db->query($this->_sql_update, $data);
+                $info->count++;
+            } else {
+                $abort = TRUE;
             }
 
             if($show_header === TRUE) {
@@ -188,16 +189,20 @@ class Limiter {
      * Get target rate info
      *
      * @param string $target
-     * @return stdClass Info object
+     * @return stdClass|false Info object, returns false if no info is present
      */
     public function get_limit_info($target = '_global') {
         if(!array_key_exists($target, $this->_info_cache)) {
             $data = array('client' => $this->get_hash(), 'target' => $target);
             $info = $this->CI->db->query($this->_sql_info, $data)->row();
+
             $this->_info_cache[$target] = $info;
+        } else {
+            $info = $this->_info_cache[$target];
         }
 
-        return $this->_info_cache[$target];
+        $valid_data = isset($info->count);
+        return $valid_data ? $info : FALSE;
     }
 
     /**
